@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+::-webkit-scrollbar{
+    display:none
+}
+.animated-form {
+
+  /* Animate subtle random shadow motion */
+  animation: softShadow 8s ease-in-out infinite;
+}
+.animated-card{
+  animation: softGlow 8s ease-in-out infinite;
+}
+
+/* Slightly irregular and smooth shifting of shadow */
+@keyframes softShadow {
+  0% {
+    box-shadow: -5px -3px 15px #00bcd4;
+  }
+  20% {
+    box-shadow: 4px -2px 15px #00bcd4;
+  }
+  40% {
+    box-shadow: 3px 2px 15px #00bcd4;
+  }
+  60% {
+    box-shadow: -4px 1px 15px #00bcd4;
+  }
+  80% {
+    box-shadow: 2px 3px 15px #00bcd4;
+  }
+  100% {
+    box-shadow: -5px -3px 15px #00bcd4;
+  }
+}
+@keyframes softGlow {
+  0% {
+    box-shadow: 0 0 3px #00bcd4, 0 0 8px #00bcd4;
+  }
+  50% {
+    box-shadow: 0 0 5px #00bcd4, 0 0 12px #00bcd4;
+  }
+  100% {
+    box-shadow: 0 0 3px #00bcd4, 0 0 8px #00bcd4;
+  }
+}
+/* inside your index.css or global.css */
+.text-glow {
+  text-shadow: 0 0 8px #00bcd4, 0 0 5px #00eaff;
+}
+
+.gradient-rotate {
+  position: relative;
+  border: none;
+  color: #afd6e4;
+  font-weight: bold;
+  border-radius: 9999px;
+  cursor: pointer;
+  overflow: hidden;
+  background: linear-gradient(270deg, #58adc8, #055c72);
+  background-size: 400% 400%;
+  animation: gradientShift 8s linear infinite;
+}
+
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
