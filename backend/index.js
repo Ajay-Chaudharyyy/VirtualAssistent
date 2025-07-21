@@ -14,11 +14,8 @@ db().catch(err => console.error("Database connection failed:", err.message));
 // ✅ Middlewares
 app.use(express.json());
 app.use(cors({
-  origin: [
-    'http://localhost:5173', 
-    'https://your-frontend.vercel.app'
-  ],
-  credentials: true
+  origin: "https://virtual-assistent-git-main-ajay-chaudharyys-projects.vercel.app", // ✅ your frontend origin
+  credentials: true // ✅ if you're using cookies or authorization headers
 }));
 
 
