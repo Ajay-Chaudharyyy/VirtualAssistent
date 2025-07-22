@@ -40,9 +40,9 @@ exports.signUp = async (req, res) => {
 
     res.cookie("token", token, {
       httpOnly: true,
-      maxAge: 3 * 60 * 60 * 1000,
-      sameSite: "strict",
-      secure: false,
+      maxAge: 3 * 24 * 60 * 60 * 1000,
+      sameSite: "None",
+      secure: true,
     });
     return res.status(201).json({
       success: true,
