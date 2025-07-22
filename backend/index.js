@@ -11,14 +11,26 @@ const cors = require("cors");
 // ✅ Connect Database
 db().catch(err => console.error("Database connection failed:", err.message));
 
-// ✅ Middlewares
-app.use(express.json());
+// ✅ Allowed Origins (local + deployed)
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://virtual-assistent-ajay-chaudharyys-projects.vercel.app",
+];
+
+// ✅ CORS Middleware
 app.use(cors({
-  origin: "https://virtual-assistent-git-main-ajay-chaudharyys-projects.vercel.app", // ✅ your frontend origin
-  credentials: true // ✅ if you're using cookies or authorization headers
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true
 }));
 
-
+// ✅ Core Middlewares
+app.use(express.json());
 app.use(cookieParser());
 
 // ✅ API Routes

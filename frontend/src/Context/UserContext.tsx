@@ -21,8 +21,8 @@ interface userDataType {
   updatedAt: string;
   __v: number;
   history: string[];
-  assistant?:string;
-  assistantImage?:string
+  assistant?: string;
+  assistantImage?: string;
 }
 
 // ✅ Context Type
@@ -33,11 +33,13 @@ interface UserContextType {
   userData: userDataType | undefined;
   handleUserData: () => Promise<void>;
   setUserData: React.Dispatch<React.SetStateAction<userDataType | undefined>>;
-  updateUserData: (img:string, name:String) => Promise<void>;
-  logout : () => Promise<void>;
-  geminiResponse: (command:string) => Promise<any>;
-  answer:string
+  updateUserData: (img: string, name: String) => Promise<void>;
+  logout: () => Promise<void>;
+  geminiResponse: (command: string) => Promise<any>;
+  answer: string;
+  speak: (text: string) => void; // ✅ Add this
 }
+
 
 // ✅ Create Context
 export const UserDataContext = createContext<UserContextType | undefined>(undefined);
@@ -54,11 +56,43 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
   const [loading, setLoading] = useState<boolean>(false);
   const [userData, setUserData] = useState<userDataType | undefined>(undefined);
-  const [answer,setAnswer]= useState<string>("")
+  const [answer, setAnswer] = useState<string>("");
 
   const navigate = useNavigate();
 
-  // ✅ Fetch User Data
+  const speak = (text: string) => {
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+
+    synth.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    const isHindi = /[\u0900-\u097F]/.test(text);
+    utterance.lang = isHindi ? "hi-IN" : "en-US";
+
+    const loadVoicesAndSpeak = () => {
+      const voices = synth.getVoices();
+      let selectedVoice = voices.find((v) =>
+        isHindi ? v.lang.startsWith("hi") : v.lang.startsWith("en")
+      );
+      if (!selectedVoice && voices.length > 0) {
+        selectedVoice = voices[0];
+      }
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
+      }
+      utterance.rate = 1;
+      utterance.pitch = 1;
+      synth.speak(utterance);
+    };
+
+    if (synth.getVoices().length === 0) {
+      synth.onvoiceschanged = loadVoicesAndSpeak;
+      window.speechSynthesis.getVoices();
+    } else {
+      loadVoicesAndSpeak();
+    }
+  };
+
   const handleUserData = async () => {
     try {
       const response = await axios.get("/api/v1/user", { withCredentials: true });
@@ -71,30 +105,21 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
     }
   };
 
-  // ✅ Fetch User Data on App Mount
   useEffect(() => {
-  const savedUser = localStorage.getItem("userData");
-  if (savedUser) {
-    setUserData(JSON.parse(savedUser));
-  }
-  else{
-    setUserData(undefined);
-    logout();
-  }
-}, []);
+    const savedUser = localStorage.getItem("userData");
+    if (savedUser) {
+      setUserData(JSON.parse(savedUser));
+    } else {
+      setUserData(undefined);
+      logout();
+    }
+  }, []);
 
+  useEffect(() => {
+    if (userData) localStorage.setItem("userData", JSON.stringify(userData));
+    setAnswer("");
+  }, [userData]);
 
-useEffect(() => {
-  if (userData) localStorage.setItem("userData", JSON.stringify(userData));
-  setAnswer(""); // Clear answer when userData changes
-}, [userData]);
-
-
-  // useEffect(()=>{
-  //   console.log("🤢🤢🤢🤢 ",userData);
-  // },[userData]);
-
-  // ✅ Sign Up Handler
   const signUp = async (formData: { name: string; email: string; password: string }): Promise<void> => {
     try {
       setLoading(true);
@@ -105,7 +130,7 @@ useEffect(() => {
       const response = await axios.post("/api/v1/signup", formData, { withCredentials: true });
       if (response?.data?.success) {
         toast.success("Sign up successful!");
-        await handleUserData(); // ✅ first fetch data
+        await handleUserData();
         navigate("/");
       } else {
         toast.error(response?.data?.message || "Sign up failed.");
@@ -118,14 +143,13 @@ useEffect(() => {
     }
   };
 
-  // ✅ Login Handler
   const login = async (formData: { email: string; password: string }) => {
     try {
       setLoading(true);
       const response = await axios.post("/api/v1/login", formData, { withCredentials: true });
       if (response?.data?.success) {
         toast.success("Login successful!");
-        await handleUserData(); // ✅ first fetch data
+        await handleUserData();
         navigate("/");
       } else {
         toast.error(response?.data?.message || "Login failed.");
@@ -138,189 +162,120 @@ useEffect(() => {
     }
   };
 
-  const updateUserData = async (img:string, name:String) =>{
-    try{
-      if(!img || !name) {
-      toast.error("Please select an image and name for your assistant.");
-      return;
-      
-    }
-    const response = await axios.put("/api/v1/update", { assistantImage: img, assistant: name }, { withCredentials: true });
-    if(response?.data?.success)
-    {
-      await handleUserData();
-      toast.success("Assistant updated successfully!");
-      navigate("/");
-    }
-    else{
-      toast.error(response?.data?.message || "Failed to update assistant.");
-      console.error("Update User Data Error:", response?.data?.message);
-    }
-    } catch(err)
-    {
+  const updateUserData = async (img: string, name: String) => {
+    try {
+      if (!img || !name) {
+        toast.error("Please select an image and name for your assistant.");
+        return;
+      }
+      const response = await axios.put("/api/v1/update", { assistantImage: img, assistant: name }, { withCredentials: true });
+      if (response?.data?.success) {
+        await handleUserData();
+        toast.success("Assistant updated successfully!");
+        navigate("/");
+      } else {
+        toast.error(response?.data?.message || "Failed to update assistant.");
+        console.error("Update User Data Error:", response?.data?.message);
+      }
+    } catch (err) {
       console.error("Update User Data Error:", err);
-      if(err instanceof Error)
-      toast.error(err.message);
+      if (err instanceof Error) toast.error(err.message);
     }
-  
-  }
+  };
 
   const logout = async () => {
-    try{
-      const response = await axios.get("/api/v1/logout",{withCredentials: true});
-      if(response?.data?.success)
-      {
+    try {
+      const response = await axios.get("/api/v1/logout", { withCredentials: true });
+      if (response?.data?.success) {
         setUserData(undefined);
-      toast.success("Logout Successfully!");
-      navigate("/login");
-      localStorage.removeItem("userData");
-      } else{
+        toast.success("Logout Successfully!");
+        navigate("/login");
+        localStorage.removeItem("userData");
+      } else {
         toast.error(response?.data?.message || "Logout failed.");
         console.error("Logout Error:", response?.data?.message);
       }
-    }catch(err)
-    {
+    } catch (err) {
       console.error("Logout Error:", err);
-      if(err instanceof Error)
-      toast.error(err.message);
+      if (err instanceof Error) toast.error(err.message);
     }
-  }
+  };
 
-  const geminiResponse = async (command:string) =>
-  {
-    try{
+  const geminiResponse = async (command: string) => {
+    try {
       const result = await axios.post("/api/v1/gemini", { command }, { withCredentials: true });
-      if(result?.data?.success)
-      {
+      if (result?.data?.success) {
         return result?.data?.data;
-      }
-      else{
-        // toast.error(result?.data?.message || "Failed to get Gemini response.");
+      } else {
         console.error("Gemini Response Error:", result?.data?.message);
       }
-
-    } catch(err)
-    {
+    } catch (err) {
       console.error("Gemini Response Error:", err);
-      // if(err instanceof Error)
-      // toast.error(err.message);
     }
-  }
+  };
 
   useEffect(() => {
-  if (!userData?.assistant) return;
+    if (!userData?.assistant) return;
 
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const recognition = new SpeechRecognition();
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
 
-  recognition.continuous = true;
-  recognition.interimResults = false;
-  recognition.lang = "en-US";
-  
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = "en-US";
 
-  recognition.onresult = async (event: any) => {
-    const transcript = event.results[event.resultIndex][0].transcript;
-    console.log("Speech:", transcript);
+    recognition.onresult = async (event: any) => {
+      const transcript = event.results[event.resultIndex][0].transcript;
+      console.log("Speech:", transcript);
 
-    if (transcript.toLowerCase().includes(userData.assistant!.toLowerCase())) {
-      const command = transcript.replace(new RegExp(userData.assistant!, 'i'), "").trim();
-      console.log("Command Detected:", command);
-      const data = await geminiResponse(command);
-      const responseText = data?.response || "Sorry, I do not understand the question";
-      setAnswer(responseText);
-      speak(responseText);
-      console.log("Gemini Response:", data);
-    }
-    else{
-      speak("If you want to ask me something, say my name first, learn manners man, idk who you are talking to")
-    }
-  };
+      if (transcript.toLowerCase().includes(userData.assistant!.toLowerCase())) {
+        const command = transcript.replace(new RegExp(userData.assistant!, 'i'), "").trim();
+        console.log("Command Detected:", command);
+        const data = await geminiResponse(command);
+        const responseText = data?.response || "Sorry, I do not understand the question";
+        setAnswer(responseText);
+        speak(responseText);
+        console.log("Gemini Response:", data);
+      } else {
+        speak("If you want to ask me something, say my name first, learn manners man, idk who you are talking to");
+        setAnswer("")
+      }
+    };
 
-  // 💡 Restart when it ends automatically
-  recognition.onend = () => {
-    console.log("Speech recognition ended. Restarting...");
-    recognition.start(); // Restart it here
-  };
-
-  recognition.onerror = (event: any) => {
-    console.error("Speech recognition error:", event.error);
-    // Optionally restart on error:
-    if (event.error === "no-speech" || event.error === "network") {
+    recognition.onend = () => {
+      console.log("Speech recognition ended. Restarting...");
       recognition.start();
-    }
-  };
+    };
 
-  recognition.start();
+    recognition.onerror = (event: any) => {
+      console.error("Speech recognition error:", event.error);
+      if (event.error === "no-speech" || event.error === "network") {
+        recognition.start();
+      }
+    };
 
-  return () => {
-    recognition.onend = null;
-    recognition.onresult = null;
-    recognition.onerror = null;
-    recognition.stop();
-  };
-}, [userData]);
+    recognition.start();
 
+    return () => {
+      recognition.onend = null;
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.stop();
+    };
+  }, [userData]);
 
-const speak = (text: string) => {
-  const synth = window.speechSynthesis;
-  if (!synth) return;
-
-  synth.cancel(); // Cancel any ongoing speech
-
-  const utterance = new SpeechSynthesisUtterance(text);
-
-  // Detect Hindi characters
-  const isHindi = /[\u0900-\u097F]/.test(text);
-  utterance.lang = isHindi ? "hi-IN" : "en-US";
-
-  // Load voices safely
-  const loadVoicesAndSpeak = () => {
-    const voices = synth.getVoices();
-    let selectedVoice = voices.find((v) =>
-      isHindi ? v.lang.startsWith("hi") : v.lang.startsWith("en")
-    );
-
-    // ✅ Fallback if matching voice not found
-    if (!selectedVoice && voices.length > 0) {
-      selectedVoice = voices[0];
-    }
-
-    if (selectedVoice) {
-      utterance.voice = selectedVoice;
-    }
-
-    utterance.rate = 1;
-    utterance.pitch = 1;
-
-    synth.speak(utterance);
-  };
-
-  if (synth.getVoices().length === 0) {
-    synth.onvoiceschanged = () => loadVoicesAndSpeak();
-    // 🔁 Trigger voice loading
-    window.speechSynthesis.getVoices();
-  } else {
-    loadVoicesAndSpeak();
-  }
-};
-
-
-useEffect(() => {
-  const voices = window.speechSynthesis.getVoices();
-  console.log("Available voices:", voices);
-}, []);
-
-    
-
+  useEffect(() => {
+    const voices = window.speechSynthesis.getVoices();
+    console.log("Available voices:", voices);
+  }, []);
 
   return (
-    <UserDataContext.Provider value={{ signUp, login, loading, userData, handleUserData,setUserData,updateUserData,logout,geminiResponse,answer }}>
+    <UserDataContext.Provider value={{ signUp, login, loading, userData, handleUserData, setUserData, updateUserData, logout, geminiResponse, answer, speak }}>
       {children}
     </UserDataContext.Provider>
   );
 };
 
-// ✅ Custom Hook
 export const useUserContext = () => {
   const context = useContext(UserDataContext);
   if (!context) throw new Error("useUserContext must be used within a UserProvider");
